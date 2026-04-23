@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Twitch Auth — Unfollow Tracker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0e0e10;
+    color: #efeff1;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #1f1f23;
+    border-radius: 16px;
+    padding: 48px 40px;
+    max-width: 560px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  .logo { font-size: 52px; margin-bottom: 12px; }
+  h1 { font-size: 22px; color: #efeff1; margin-bottom: 6px; }
+  .sub { color: #adadb8; font-size: 14px; margin-bottom: 32px; }
+
+  /* SUCCESS */
+  .token-box {
+    background: #18181b;
+    border: 2px solid #9146ff;
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  .token-label {
+    font-size: 11px;
+    color: #adadb8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .token-value {
+    font-family: 'Consolas', monospace;
+    font-size: 13px;
+    color: #9146ff;
+    word-break: break-all;
+    line-height: 1.5;
+    user-select: all;
+  }
+  .copy-btn {
+    width: 100%;
+    background: #9146ff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 12px;
+  }
+  .copy-btn:hover { background: #772ce8; }
+  .copy-btn.copied { background: #00c853; color: #000; }
+
+  .step-box {
+    background: #18181b;
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .step-box p { font-size: 13px; color: #adadb8; line-height: 1.9; }
+  .step-box strong { color: #efeff1; }
+
+  /* ERROR */
+  .error-icon { font-size: 52px; margin-bottom: 12px; }
+  .error-msg {
+    background: #2a1010;
+    border: 1px solid #ef5350;
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: #ef5350;
+    font-size: 13px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  .retry-btn {
+    background: #ef5350;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .retry-btn:hover { background: #c62828; }
+
+  /* LOADING */
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid #2d2d30;
+    border-top-color: #9146ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 24px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer { margin-top: 24px; font-size: 11px; color: #3d3d40; }
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <div class="spinner"></div>
+  <p style="color:#adadb8">Обробляю авторизацію…</p>
+</div>
+
+<script>
+(function() {
+  const app = document.getElementById('app');
+
+  // Twitch Implicit Flow повертає токен у #fragment
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+
+  // Також перевіряємо query string (для помилок)
+  const query = new URLSearchParams(window.location.search);
+
+  const token = params.get('access_token');
+  const error = params.get('error') || query.get('error');
+  const errorDesc = params.get('error_description') || query.get('error_description');
+
+  if (token) {
+    // ✅ УСПІХ
+    app.innerHTML = `
+      <div class="logo">✅</div>
+      <h1>Авторизація успішна!</h1>
+      <p class="sub">Скопіюй токен нижче і передай власнику програми</p>
+
+      <div class="token-box">
+        <div class="token-label">🔑 Твій Access Token</div>
+        <div class="token-value" id="tokenVal">${token}</div>
+      </div>
+
+      <button class="copy-btn" id="copyBtn" onclick="copyToken()">
+        📋  Копіювати токен
+      </button>
+
+      <div class="step-box">
+        <p>
+          <strong>Що робити далі:</strong><br>
+          1. Натисни <strong>«Копіювати токен»</strong> вище<br>
+          2. Надішли скопійований токен власнику програми<br>
+          3. Він вставить його у <strong>🔑 Токен → Вставити вручну</strong><br>
+          4. Готово — можна закрити цю вкладку
+        </p>
+      </div>
+
+      <div class="footer">Twitch Unfollow Tracker · токен діє поки не відкликати</div>
+    `;
+  } else if (error) {
+    // ❌ ПОМИЛКА
+    const msgs = {
+      'redirect_mismatch': 'Redirect URI не збігається з тим що вказано у Twitch Console.\nЗверніться до власника програми.',
+      'access_denied': 'Ти відмовив у доступі. Закрий сторінку або спробуй ще раз.',
+    };
+    const friendlyMsg = msgs[error] || `${error}: ${decodeURIComponent(errorDesc || '')}`;
+    app.innerHTML = `
+      <div class="error-icon">❌</div>
+      <h1>Помилка авторизації</h1>
+      <p class="sub">Щось пішло не так</p>
+      <div class="error-msg"><strong>${error}</strong><br>${friendlyMsg}</div>
+      <button class="retry-btn" onclick="window.history.back()">← Назад</button>
+    `;
+  } else {
+    // Немає ні токена ні помилки — пряме відкриття сторінки
+    app.innerHTML = `
+      <div class="logo">🎮</div>
+      <h1>Twitch Unfollow Tracker</h1>
+      <p class="sub">Ця сторінка використовується для OAuth авторизації.<br>Відкрий посилання з програми.</p>
+      <div class="footer">github.io · Twitch Unfollow Tracker</div>
+    `;
+  }
+
+  window.copyToken = function() {
+    const val = document.getElementById('tokenVal').textContent;
+    navigator.clipboard.writeText(val).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✅  Скопійовано!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '📋  Копіювати токен';
+        btn.classList.remove('copied');
+      }, 2500);
+    }).catch(() => {
+      // Fallback для старих браузерів
+      const el = document.getElementById('tokenVal');
+      const range = document.createRange();
+      range.selectNode(el);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+    });
+  };
+})();
+</script>
+</body>
+</html>
