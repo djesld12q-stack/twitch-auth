@@ -1,215 +1,297 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Twitch Auth — Unfollow Tracker</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0e0e10;
-    color: #efeff1;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .card {
-    background: #1f1f23;
-    border-radius: 16px;
-    padding: 48px 40px;
-    max-width: 560px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
-  }
-  .logo { font-size: 52px; margin-bottom: 12px; }
-  h1 { font-size: 22px; color: #efeff1; margin-bottom: 6px; }
-  .sub { color: #adadb8; font-size: 14px; margin-bottom: 32px; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twitch Auth — Unfollow Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* SUCCESS */
-  .token-box {
-    background: #18181b;
-    border: 2px solid #9146ff;
-    border-radius: 10px;
-    padding: 18px 20px;
-    margin-bottom: 20px;
-    text-align: left;
-  }
-  .token-label {
-    font-size: 11px;
-    color: #adadb8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-  }
-  .token-value {
-    font-family: 'Consolas', monospace;
-    font-size: 13px;
-    color: #9146ff;
-    word-break: break-all;
-    line-height: 1.5;
-    user-select: all;
-  }
-  .copy-btn {
-    width: 100%;
-    background: #9146ff;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 14px;
-    font-size: 15px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.15s;
-    margin-bottom: 12px;
-  }
-  .copy-btn:hover { background: #772ce8; }
-  .copy-btn.copied { background: #00c853; color: #000; }
+    body {
+      background: #0e0e10;
+      color: #efeff1;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
 
-  .step-box {
-    background: #18181b;
-    border-radius: 10px;
-    padding: 16px 20px;
-    text-align: left;
-    margin-bottom: 20px;
-  }
-  .step-box p { font-size: 13px; color: #adadb8; line-height: 1.9; }
-  .step-box strong { color: #efeff1; }
+    .card {
+      background: #1f1f23;
+      border-radius: 16px;
+      padding: 40px 36px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      text-align: center;
+    }
 
-  /* ERROR */
-  .error-icon { font-size: 52px; margin-bottom: 12px; }
-  .error-msg {
-    background: #2a1010;
-    border: 1px solid #ef5350;
-    border-radius: 8px;
-    padding: 14px 18px;
-    color: #ef5350;
-    font-size: 13px;
-    margin-bottom: 20px;
-    text-align: left;
-  }
-  .retry-btn {
-    background: #ef5350;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 28px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .retry-btn:hover { background: #c62828; }
+    .icon { font-size: 64px; margin-bottom: 16px; display: block; }
 
-  /* LOADING */
-  .spinner {
-    width: 48px; height: 48px;
-    border: 4px solid #2d2d30;
-    border-top-color: #9146ff;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 24px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 22px; margin-bottom: 8px; }
 
-  .footer { margin-top: 24px; font-size: 11px; color: #3d3d40; }
-</style>
+    .sub { color: #adadb8; font-size: 14px; margin-bottom: 28px; }
+
+    /* Стан: завантаження */
+    #state-loading .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #2d2d30;
+      border-top-color: #9146ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Стан: успіх авто */
+    #state-auto-ok { display: none; }
+    #state-auto-ok .icon-ok { font-size: 72px; }
+
+    /* Стан: успіх ручний */
+    #state-manual { display: none; }
+
+    /* Стан: помилка */
+    #state-error { display: none; }
+    #state-error .icon-err { font-size: 60px; }
+
+    .token-box {
+      background: #18181b;
+      border: 2px solid #9146ff;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: monospace;
+      font-size: 13px;
+      color: #9146ff;
+      word-break: break-all;
+      text-align: left;
+      margin: 16px 0;
+      cursor: pointer;
+      user-select: all;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { opacity: 0.75; }
+
+    .btn-purple { background: #9146ff; color: #fff; }
+    .btn-green  { background: #00c853; color: #000; }
+    .btn-gray   { background: #2d2d30; color: #adadb8; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    .badge-ok     { background: #00c85320; color: #00c853; border: 1px solid #00c85360; }
+    .badge-manual { background: #9146ff20; color: #9146ff; border: 1px solid #9146ff60; }
+    .badge-err    { background: #ef535020; color: #ef5350; border: 1px solid #ef535060; }
+
+    .steps {
+      text-align: left;
+      background: #18181b;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: #adadb8;
+      line-height: 2;
+    }
+    .steps b { color: #efeff1; }
+
+    .footer {
+      margin-top: 24px;
+      font-size: 11px;
+      color: #3d3d40;
+    }
+  </style>
 </head>
 <body>
-<div class="card" id="app">
-  <div class="spinner"></div>
-  <p style="color:#adadb8">Обробляю авторизацію…</p>
+<div class="card">
+
+  <!-- ЗАВАНТАЖЕННЯ / ОБРОБКА -->
+  <div id="state-loading">
+    <div class="spinner"></div>
+    <h1>Обробка авторизації…</h1>
+    <p class="sub">Зачекай секунду ⏳</p>
+  </div>
+
+  <!-- УСПІХ — АВТО (програма отримала токен сама) -->
+  <div id="state-auto-ok">
+    <span class="icon">✅</span>
+    <span class="status-badge badge-ok">⚡ Авто-підключення</span>
+    <h1>Авторизація успішна!</h1>
+    <p class="sub" id="auto-login-label">Токен надіслано у програму автоматично</p>
+    <p style="color:#00c853; font-size:14px; margin-top:8px;">
+      🎮 Можеш закрити цю вкладку — трекер вже готовий!
+    </p>
+    <div class="footer">Twitch Unfollow Tracker · Auto Auth</div>
+  </div>
+
+  <!-- УСПІХ — РУЧНИЙ (програма не запущена або не відповіла) -->
+  <div id="state-manual">
+    <span class="icon">🔑</span>
+    <span class="status-badge badge-manual">Ручне копіювання</span>
+    <h1>Твій токен готовий!</h1>
+    <p class="sub">Програма не відповіла автоматично — скопіюй токен вручну</p>
+    <div class="token-box" id="token-display" title="Натисни щоб скопіювати"></div>
+    <button class="btn btn-purple" id="btn-copy" onclick="copyToken()">
+      📋 Копіювати токен
+    </button>
+    <div class="steps">
+      <b>Що далі:</b><br>
+      1. Натисни «Копіювати токен» вище<br>
+      2. Відкрий <b>Twitch Unfollow Tracker</b><br>
+      3. Перейди на вкладку <b>🔑 Токен</b><br>
+      4. Встав токен у поле → натисни <b>«Зберегти»</b>
+    </div>
+    <div class="footer">Twitch Unfollow Tracker · Manual Auth</div>
+  </div>
+
+  <!-- ПОМИЛКА -->
+  <div id="state-error">
+    <span class="icon">❌</span>
+    <span class="status-badge badge-err">Помилка</span>
+    <h1>Помилка авторизації</h1>
+    <p class="sub" id="error-msg">Щось пішло не так.</p>
+    <button class="btn btn-gray" onclick="window.close()">Закрити вкладку</button>
+    <div class="footer">Twitch Unfollow Tracker</div>
+  </div>
+
 </div>
 
 <script>
-(function() {
-  const app = document.getElementById('app');
+  const LOCAL_PORT  = 7337;
+  const LOCAL_URL   = `http://localhost:${LOCAL_PORT}`;
+  const TIMEOUT_MS  = 4000;   // 4 сек на перевірку чи програма жива
 
-  // Twitch Implicit Flow повертає токен у #fragment
-  const hash = window.location.hash.substring(1);
-  const params = new URLSearchParams(hash);
+  let _token = null;
 
-  // Також перевіряємо query string (для помилок)
-  const query = new URLSearchParams(window.location.search);
-
-  const token = params.get('access_token');
-  const error = params.get('error') || query.get('error');
-  const errorDesc = params.get('error_description') || query.get('error_description');
-
-  if (token) {
-    // ✅ УСПІХ
-    app.innerHTML = `
-      <div class="logo">✅</div>
-      <h1>Авторизація успішна!</h1>
-      <p class="sub">Скопіюй токен нижче і передай власнику програми</p>
-
-      <div class="token-box">
-        <div class="token-label">🔑 Твій Access Token</div>
-        <div class="token-value" id="tokenVal">${token}</div>
-      </div>
-
-      <button class="copy-btn" id="copyBtn" onclick="copyToken()">
-        📋  Копіювати токен
-      </button>
-
-      <div class="step-box">
-        <p>
-          <strong>Що робити далі:</strong><br>
-          1. Натисни <strong>«Копіювати токен»</strong> вище<br>
-          2. Надішли скопійований токен власнику програми<br>
-          3. Він вставить його у <strong>🔑 Токен → Вставити вручну</strong><br>
-          4. Готово — можна закрити цю вкладку
-        </p>
-      </div>
-
-      <div class="footer">Twitch Unfollow Tracker · токен діє поки не відкликати</div>
-    `;
-  } else if (error) {
-    // ❌ ПОМИЛКА
-    const msgs = {
-      'redirect_mismatch': 'Redirect URI не збігається з тим що вказано у Twitch Console.\nЗверніться до власника програми.',
-      'access_denied': 'Ти відмовив у доступі. Закрий сторінку або спробуй ще раз.',
-    };
-    const friendlyMsg = msgs[error] || `${error}: ${decodeURIComponent(errorDesc || '')}`;
-    app.innerHTML = `
-      <div class="error-icon">❌</div>
-      <h1>Помилка авторизації</h1>
-      <p class="sub">Щось пішло не так</p>
-      <div class="error-msg"><strong>${error}</strong><br>${friendlyMsg}</div>
-      <button class="retry-btn" onclick="window.history.back()">← Назад</button>
-    `;
-  } else {
-    // Немає ні токена ні помилки — пряме відкриття сторінки
-    app.innerHTML = `
-      <div class="logo">🎮</div>
-      <h1>Twitch Unfollow Tracker</h1>
-      <p class="sub">Ця сторінка використовується для OAuth авторизації.<br>Відкрий посилання з програми.</p>
-      <div class="footer">github.io · Twitch Unfollow Tracker</div>
-    `;
+  // ── Читаємо токен з URL-фрагменту (#access_token=...) ──
+  function parseToken() {
+    const hash   = window.location.hash.substring(1);   // прибираємо '#'
+    const params = new URLSearchParams(hash);
+    return params.get("access_token") || null;
   }
 
-  window.copyToken = function() {
-    const val = document.getElementById('tokenVal').textContent;
-    navigator.clipboard.writeText(val).then(() => {
-      const btn = document.getElementById('copyBtn');
-      btn.textContent = '✅  Скопійовано!';
-      btn.classList.add('copied');
+  // ── Перевіряємо чи програма запущена (GET /status) ──
+  async function isProgramAlive() {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      const r    = await fetch(`${LOCAL_URL}/status`, { signal: ctrl.signal });
+      clearTimeout(tid);
+      const data = await r.json();
+      return data.alive === true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── Надсилаємо токен у програму (GET /token?t=...) ──
+  async function sendTokenToApp(token) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+      const r    = await fetch(
+        `${LOCAL_URL}/token?t=${encodeURIComponent(token)}`,
+        { signal: ctrl.signal }
+      );
+      clearTimeout(tid);
+      const data = await r.json();
+      return data.ok === true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ── Копіювання токена в буфер ──
+  function copyToken() {
+    if (!_token) return;
+    navigator.clipboard.writeText(_token).then(() => {
+      const btn = document.getElementById("btn-copy");
+      btn.textContent = "✅ Скопійовано!";
+      btn.style.background = "#00c853";
+      btn.style.color = "#000";
       setTimeout(() => {
-        btn.textContent = '📋  Копіювати токен';
-        btn.classList.remove('copied');
+        btn.textContent = "📋 Копіювати токен";
+        btn.style.background = "#9146ff";
+        btn.style.color = "#fff";
       }, 2500);
     }).catch(() => {
       // Fallback для старих браузерів
-      const el = document.getElementById('tokenVal');
-      const range = document.createRange();
-      range.selectNode(el);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
-      document.execCommand('copy');
+      const ta = document.createElement("textarea");
+      ta.value = _token;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
     });
-  };
-})();
+  }
+
+  function show(id) {
+    ["state-loading","state-auto-ok","state-manual","state-error"]
+      .forEach(s => document.getElementById(s).style.display = s === id ? "block" : "none");
+  }
+
+  // ── Основна логіка ──
+  async function main() {
+    show("state-loading");
+
+    // 1. Отримуємо токен з URL
+    _token = parseToken();
+
+    if (!_token) {
+      // Перевіряємо чи є помилка у URL
+      const hash   = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const err    = params.get("error") || params.get("error_description");
+      document.getElementById("error-msg").textContent =
+        err ? `Twitch повернув помилку: ${err}` : "Токен відсутній у URL. Спробуй авторизуватись знову.";
+      show("state-error");
+      return;
+    }
+
+    // 2. Перевіряємо чи програма запущена
+    const alive = await isProgramAlive();
+
+    if (alive) {
+      // 3а. Програма є — надсилаємо токен автоматично
+      const sent = await sendTokenToApp(_token);
+      if (sent) {
+        // Витягуємо login з токена через validate (просто показуємо успіх)
+        document.getElementById("auto-login-label").textContent =
+          "Токен надіслано у програму автоматично — можеш закрити вкладку 🎉";
+        show("state-auto-ok");
+        // Очищаємо токен з URL (безпека)
+        history.replaceState(null, "", window.location.pathname);
+        return;
+      }
+    }
+
+    // 3б. Програма не запущена або не відповіла — показуємо ручний режим
+    document.getElementById("token-display").textContent = _token;
+    show("state-manual");
+    // Очищаємо токен з URL
+    history.replaceState(null, "", window.location.pathname);
+  }
+
+  main();
 </script>
 </body>
 </html>
