@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twitch Auth — Stream Slots</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0e0e10; color: #efeff1;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card {
+      background: #1f1f23; border-radius: 16px;
+      padding: 40px 36px; max-width: 460px; width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,.5);
+      text-align: center;
+    }
+    .spinner {
+      width: 52px; height: 52px;
+      border: 4px solid #2d2d30; border-top-color: #9146ff;
+      border-radius: 50%; animation: spin .8s linear infinite;
+      margin: 0 auto 24px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .sub { color: #adadb8; font-size: 14px; line-height: 1.6; }
+    .badge {
+      display: inline-block; padding: 4px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: bold; margin-bottom: 18px;
+    }
+    .badge-ok  { background: #00c85320; color: #00c853; border: 1px solid #00c85360; }
+    .badge-err { background: #ef535020; color: #ef5350; border: 1px solid #ef535060; }
+    .btn {
+      display: block; width: 100%; padding: 13px; border: none;
+      border-radius: 10px; font-size: 15px; font-weight: bold;
+      cursor: pointer; margin-top: 16px; background: #2d2d30; color: #adadb8;
+    }
+    #state-ok  { display: none; }
+    #state-err { display: none; }
+    .footer { margin-top: 24px; font-size: 11px; color: #3d3d40; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <div id="state-loading">
+    <div class="spinner"></div>
+    <h1>Авторизація…</h1>
+    <p class="sub">Зберігаємо токен і повертаємось назад ⏳</p>
+  </div>
+
+  <div id="state-ok">
+    <div style="font-size:64px;margin-bottom:12px;">✅</div>
+    <span class="badge badge-ok">Авторизовано!</span>
+    <h1>Токен збережено</h1>
+    <p class="sub">Повертаємось у Stream Slots… 🎰</p>
+    <div class="footer">Stream Slots · Twitch Auth</div>
+  </div>
+
+  <div id="state-err">
+    <div style="font-size:64px;margin-bottom:12px;">❌</div>
+    <span class="badge badge-err">Помилка</span>
+    <h1>Помилка авторизації</h1>
+    <p class="sub" id="err-msg">Щось пішло не так.</p>
+    <button class="btn" onclick="window.close()">Закрити вкладку</button>
+    <div class="footer">Stream Slots · Twitch Auth</div>
+  </div>
+
+</div>
+<script>
+  const LS_TOKEN     = 'twitch_token';
+  const LS_LOGIN     = 'twitch_login';
+  const LS_RETURN_TO = 'twitch_return_to';
+
+  function show(id) {
+    ['state-loading','state-ok','state-err']
+      .forEach(s => document.getElementById(s).style.display = s === id ? 'block' : 'none');
+  }
+
+  async function main() {
+    show('state-loading');
+
+    const hash   = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token  = params.get('access_token');
+
+    if (!token) {
+      const err = params.get('error_description') || params.get('error') || 'Токен відсутній у URL.';
+      document.getElementById('err-msg').textContent = err;
+      show('state-err');
+      return;
+    }
+
+    // Прибираємо токен з URL
+    history.replaceState(null, '', window.location.pathname);
+
+    // Валідуємо і дістаємо login
+    let login = '';
+    try {
+      const r = await fetch('https://id.twitch.tv/oauth2/validate', {
+        headers: { 'Authorization': 'OAuth ' + token }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        login = data.login || '';
+      }
+    } catch (_) {}
+
+    // Зберігаємо в localStorage (обидві сторінки на github.io — shared!)
+    localStorage.setItem(LS_TOKEN, token);
+    if (login) localStorage.setItem(LS_LOGIN, login);
+
+    show('state-ok');
+
+    // Повертаємось назад до слотів
+    const returnTo = localStorage.getItem(LS_RETURN_TO)
+      || 'https://djesld12q-stack.github.io/';
+    localStorage.removeItem(LS_RETURN_TO);
+
+    setTimeout(() => { window.location.href = returnTo; }, 1200);
+  }
+
+  main();
+</script>
+</body>
+</html>
